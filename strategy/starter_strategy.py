@@ -21,7 +21,7 @@ class Constants:
         INACTIVE = [0, 0, 0, 0]
 
     class PlayerConstants:
-        START_CLASS = game.character_class.CharacterClass.ARCHER
+        START_CLASS = game.character_class.CharacterClass.WIZARD
         ATTACK_DISTANCE = -1
         ATTACK_DAMAGE = -1
         SPAWN = Position(0, 0)
@@ -231,25 +231,25 @@ class StarterStrategy(Strategy):
             return (my_player_index + 1) % 4
 
     def buy_action_decision(self, game_state: GameState, my_player_index: int) -> Item:
-        # if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(
-        #     game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (
-        #         game_state.player_state_list[my_player_index].item == Item.NONE):
-        #     scope_points = sum(list(map(lambda p: p.score, list(filter(
-        #         lambda p: p.character_class == game.character_class.CharacterClass.KNIGHT
-        #                   or p.character_class == game.character_class.CharacterClass.ARCHER,
-        #         list(filter(lambda p: p != game_state.player_state_list[my_player_index], game_state.player_state_list)))))))
-        #     banner_points = sum(list(map(lambda p: p.score, list(filter(
-        #         lambda p: p.character_class == game.character_class.CharacterClass.WIZARD,
-        #         list(filter(lambda p: p != game_state.player_state_list[my_player_index], (game_state.player_state_list))))))))
-        #     return Item.HUNTER_SCOPE if scope_points >= banner_points else Item.RALLY_BANNER
-        # return Item.NONE
-
+        if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(
+            game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (
+                game_state.player_state_list[my_player_index].item == Item.NONE):
+            scope_points = sum(list(map(lambda p: p.score, list(filter(
+                lambda p: p.character_class == game.character_class.CharacterClass.KNIGHT
+                          or p.character_class == game.character_class.CharacterClass.ARCHER,
+                list(filter(lambda p: p != game_state.player_state_list[my_player_index], game_state.player_state_list)))))))
+            banner_points = sum(list(map(lambda p: p.score, list(filter(
+                lambda p: p.character_class == game.character_class.CharacterClass.WIZARD,
+                list(filter(lambda p: p != game_state.player_state_list[my_player_index], (game_state.player_state_list))))))))
+            return Item.HUNTER_SCOPE if scope_points >= banner_points else Item.RALLY_BANNER
+        return Item.NONE
+        #
         # return Item.HUNTER_SCOPE if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(
         #     game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (
         #                                     game_state.player_state_list[
         #                                         my_player_index].item == Item.NONE) else Item.NONE
 
-        return Item.NONE
+        # return Item.NONE
 
 
     def use_action_decision(self, game_state: GameState, my_player_index: int) -> bool:
