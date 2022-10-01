@@ -8,16 +8,16 @@ class ItemModel():
         self.cost = cost
 
 class Item(Enum):
-    PROCRUSTEAN_IRON = ItemModel(StatSet(0, 0, 0, 0), 1, 8)
-    HEAVY_BROADSWORD = ItemModel(StatSet(0, 0, 0, 0), -1, 8)
+    SHIELD = ItemModel(StatSet(0, 0, 0, 0), 1, 8)
+    PROCRUSTEAN_IRON = ItemModel(StatSet(0, 0, 0, 0), -1, 8)
+    HEAVY_BROADSWORD = ItemModel(StatSet(0, 0, 0, 0), 0, 8)
     MAGIC_STAFF = ItemModel(StatSet(0, 0, 0, 0), 0, 8)
     STEEL_TIPPED_ARROW = ItemModel(StatSet(0, 0, 0, 0), 0, 8)
     ANEMOI_WINGS = ItemModel(StatSet(0, 0, 2, 0), -1, 8)
+    HUNTER_SCOPE = ItemModel(StatSet(0, 0, 0, 1), -1, 8)
     RALLY_BANNER = ItemModel(StatSet(0, 2, 0, 0), -1, 8)
-    HUNTING_SCOPE = ItemModel(StatSet(0, 0, 0, 1), -1, 8)
     STRENGTH_POTION = ItemModel(StatSet(0, 4, 0, 0), 1, 5)
     SPEED_POTION = ItemModel(StatSet(0, 0, 2, 0), 1, 5)
     DEXTERITY_POTION = ItemModel(StatSet(0, 0, 0, 2), 1, 5)
-    SHIELD = ItemModel(StatSet(0, 0, 0, 0), -1, 8)
     NONE = ItemModel(StatSet(0, 0, 0, 0), -1, 100)
 

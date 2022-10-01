@@ -17,22 +17,21 @@ class Constants:
         HILLS = [Position(4, 4), Position(4, 5), Position(5, 4), Position(5, 5)]
 
     class PlayerConstants:
-        START_CLASS = game.character_class.CharacterClass.ARCHER
-        ATTACK_DISTANCE = 2
-        ATTACK_DAMAGE = 2
+        START_CLASS = game.character_class.CharacterClass.KNIGHT
+        ATTACK_DISTANCE = -1
+        ATTACK_DAMAGE = -1
         SPAWN = Position(0, 0)
-        SPEED = 2
+        SPEED = -1
 
 
-# def get_killables(game_state: GameState, my_player_index: int, damage: int) -> int[]:
-#     my_location = game_state.player_state_list[my_player_index].position
-#     try:
-#         eligible = get_attackable(my_player_index, my_location, game_state)
-#         eligible = sorted(filter(lambda : map(lambda ip: (ip[0], ip[1], ip[1].health), eligible), key=lambda tup: tup[2]))
-#
-#         return eligible[0][0]
-#     except:
-#         return (my_player_index + 1) % 4
+def get_killables(game_state: GameState, my_player_index: int, damage: int) -> [(int, game.player_state.PlayerState)]:
+    my_location = game_state.player_state_list[my_player_index].position
+    try:
+        eligible = get_attackable(my_player_index, my_location, game_state)
+        eligible = sorted(filter(lambda p: p[1].health<=damage, map(lambda ip: (ip[0], ip[1], ip[1].health), eligible)), key=lambda tup: tup[2], reverse=True)
+        return eligible
+    except:
+        return (my_player_index + 1) % 4
 
 
 def initialize(game_state: GameState, my_player_index: int) -> None:
@@ -83,8 +82,8 @@ class StarterStrategy(Strategy):
         # if there are no eligible players, just return next index
         try:
             eligible = get_attackable(my_player_index, my_location, game_state)
-            # eligible = sorted(map(lambda ip: (ip[0], ip[1], util.utility.chebyshev_distance(my_location, ip[1].position)), eligible), key=lambda tup: tup[2])
-            eligible = sorted(map(lambda ip: (ip[0], ip[1], ip[1].health), eligible), key=lambda tup: tup[2])
+            eligible = sorted(map(lambda ip: (ip[0], ip[1], util.utility.chebyshev_distance(my_location, ip[1].position)), eligible), key=lambda tup: tup[2])
+            # eligible = sorted(map(lambda ip: (ip[0], ip[1], ip[1].health), eligible), key=lambda tup: tup[2])
 
             return eligible[0][0]
         except:
@@ -92,11 +91,11 @@ class StarterStrategy(Strategy):
 
     def buy_action_decision(self, game_state: GameState, my_player_index: int) -> Item:
 
-        # if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (game_state.player_state_list[my_player_index].item == Item.NONE):
-        #     return Item.HUNTING_SCOPE
+        if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (game_state.player_state_list[my_player_index].item == Item.NONE):
+            return Item.HUNTER_SCOPE
 
-        if (game_state.player_state_list[my_player_index].gold >= 5) and same_pos(game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (game_state.player_state_list[my_player_index].item == Item.NONE):
-            return Item.STRENGTH_POTION
+        # if (game_state.player_state_list[my_player_index].gold >= 5) and same_pos(game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (game_state.player_state_list[my_player_index].item == Item.NONE):
+        #     return Item.STRENGTH_POTION
 
         return Item.NONE
 
@@ -120,8 +119,10 @@ class StarterStrategy(Strategy):
 
         if ( game_state.player_state_list[my_player_index].item == Item.ANEMOI_WINGS ):
             Constants.PlayerConstants.SPEED += 1
-        elif ( game_state.player_state_list[my_player_index].item == Item.HUNTING_SCOPE ):
+        elif ( game_state.player_state_list[my_player_index].item == Item.HUNTER_SCOPE ):
             Constants.PlayerConstants.ATTACK_DISTANCE += 1
+        elif (game_state.player_state_list[my_player_index].item == Item.RALLY_BANNER):
+            Constants.PlayerConstants.ATTACK_DAMAGE += 2
 
         # return game_state.player_state_list[my_player_index].item == Item.STRENGTH_POTION and get_attackable(my_player_index, game_state.player_state_list[my_player_index].position, game_state)
         return False
