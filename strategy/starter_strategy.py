@@ -17,9 +17,7 @@ class Constants:
     class PlayerConstants:
         START_CLASS = game.character_class.CharacterClass.KNIGHT
         ATTACK_DISTANCE = 2
-        SPAWN = 0
-
-    PlayerConstants.SPAWN = BoardConstants.STARTS[0]
+        SPAWN = Position(0, 0)
 
 
 def initialize(game_state: GameState, my_player_index: int) -> None:
@@ -57,5 +55,6 @@ class StarterStrategy(Strategy):
 
     def use_action_decision(self, game_state: GameState, my_player_index: int) -> bool:
         # this is the first phase to ever run, so we do some initialization shit if it's the first turn
-        if game_state.turn ==   initialize(game_state, my_player_index)
+        if game_state.turn == 1:
+        i   itialize(game_state, my_player_index)
         return True
