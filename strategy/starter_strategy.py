@@ -1,4 +1,4 @@
-from random import Random
+import itertools
 from game.game_state import GameState
 import game.character_class
 import util.utility
@@ -13,8 +13,11 @@ from strategy.strategy import Strategy
 
 class Constants:
     class BoardConstants:
-        STARTS = [Position(0, 0), Position(0, 9), Position(9, 0), Position(9, 9)]
-        HILLS = [Position(4, 4), Position(4, 5), Position(5, 4), Position(5, 5)]
+        t1 = (0, 9)
+        STARTS = [Position(xy[0], xy[1]) for xy in itertools.product(t1, t1)]
+        t2 = (4, 5)
+        HILLS = [Position(xy[0], xy[1]) for xy in itertools.product(t2, t2)]
+        BOARD = [Position(x, y) for x in range(10) for y in range(10)]
 
     class PlayerConstants:
         START_CLASS = game.character_class.CharacterClass.KNIGHT
@@ -43,28 +46,22 @@ def get_range(player: PlayerState) -> int:
     r = 0
 
     # check player class, assign proper inherent range for class
-    if (player.character_class == game.character_class.CharacterClass.KNIGHT):
-        r = 1
-    elif (player.character_class == game.character_class.CharacterClass.WIZARD):
-        r = 2
-    elif (player.character_class == game.character_class.CharacterClass.ARCHER):
-        r = 3
+    temp = player.character_class.value
+    if isinstance(temp, game.stat_set.StatSet):
+        r = temp.range
     # add one to range if player has HUNTER SCOPE equipped
     if (player.item == Item.HUNTER_SCOPE):
         r += 1
     return r
 
 
-def get_speed(player: game.player_state.PlayerState) -> int:
+def get_speed(player: PlayerState) -> int:
     speed = 0
 
     # check player class, assign proper inherent range for class
-    if (player.character_class == game.character_class.CharacterClass.KNIGHT):
-        speed = 2
-    elif (player.character_class == game.character_class.CharacterClass.WIZARD):
-        speed = 3
-    elif (player.character_class == game.character_class.CharacterClass.ARCHER):
-        speed = 4
+    temp = player.character_class.value
+    if isinstance(temp, game.stat_set.StatSet):
+        speed = temp.speed
     # add one to range if p     layer has HUNTER SCOPE equipped
     if (player.item == Item.ANEMOI_WINGS):
         speed += 2
@@ -75,12 +72,9 @@ def get_damage(player: PlayerState) -> int:
     damage = 0
 
     # check player class, assign proper inherent damage for class
-    if (player.character_class == game.character_class.CharacterClass.KNIGHT):
-        damage = 6
-    elif (player.character_class == game.character_class.CharacterClass.WIZARD):
-        damage = 4
-    elif (player.character_class == game.character_class.CharacterClass.ARCHER):
-        damage = 2
+    temp = player.character_class.value
+    if isinstance(temp, game.stat_set.StatSet):
+        damage = temp.damage
 
     if (player.item == Item.RALLY_BANNER):
         damage += 2
@@ -92,9 +86,10 @@ def get_damage(player: PlayerState) -> int:
 
 # first item in the return is the range, second item in the return is the player index
 def get_ranges(game_state: GameState) -> [(int, int)]:
-    return [(get_range(game_state.player_state_list[p]), p) for p in [0, 1, 2, 3]]
+    return [(get_range(game_state.player_state_list[p]), p) for p in range(4)]
 
 
+# set up constants at the start of the game
 def initialize(game_state: GameState, my_player_index: int) -> None:
     Constants.PlayerConstants.SPAWN = game_state.player_state_list[my_player_index].position
 
@@ -102,7 +97,7 @@ def initialize(game_state: GameState, my_player_index: int) -> None:
 # gets all possible locations for a player to move to
 def get_possible(player: PlayerState) -> [Position]:
     return list(filter(lambda pos: util.utility.manhattan_distance(player.position, pos) <= get_speed(player),
-                       [Position(x, y) for x in range(10) for y in range(10)]))
+                       Constants.BoardConstants.BOARD))
 
 
 # finds the next position for a player to move to based on the target Position
@@ -134,19 +129,35 @@ def get_attackable(player_index: int, game_state: GameState) -> [(int, PlayerSta
     return list(filter(lambda ip: ip[0] != player_index and util.utility.chebyshev_distance(ip[1].position,
                                                                                             game_state.player_state_list[
                                                                                                 player_index].position) <= get_range(
-        game_state.player_state_list[player_index]), list(zip([0, 1, 2, 3], game_state.player_state_list))))
+        game_state.player_state_list[player_index]), list(zip(range(4), game_state.player_state_list))))
 
 
 # returns the possible damage to the passed hill tile
-def hill_damage(my_player_index: int, game_state: GameState, hill: Position) -> int:
-    return sum([get_damage(game_state.player_state_list[player]) for player in [0, 1, 2, 3] if
-         player != my_player_index and get_range(game_state.player_state_list[player]) >= util.utility.chebyshev_distance(
-             game_state.player_state_list[player].position, hill)])
+def hill_damage(enemy_poses: [(int, Position)], game_state: GameState, hill: Position) -> int:
+    return sum([get_damage(game_state.player_state_list[player[0]]) for player in enemy_poses if
+                get_range(game_state.player_state_list[player[0]]) >= util.utility.chebyshev_distance(player[1], hill)])
 
 
 # returns a list of the possible damage on each hill tile
-def get_hill_damages(my_player_index: int, game_state: GameState) -> [(int, Position)]:
-    return [(hill_damage(my_player_index, game_state, hill), hill) for hill in Constants.BoardConstants.HILLS]
+def get_hill_damages(enemy_poses: [(int, Position)], game_state: GameState) -> [(int, Position)]:
+    return [(hill_damage(enemy_poses, game_state, hill), hill) for hill in Constants.BoardConstants.HILLS]
+
+
+# assumes all players move towards the center and returns the new positions of the players
+def predict(my_player_index: int, game_state: GameState) -> [(int, Position)]:
+    return [(p_index, get_next_pos(game_state.player_state_list[p_index],
+                                   closest_hill(game_state.player_state_list[p_index].position)))
+            for p_index in range(4) if p_index != my_player_index]
+
+
+# initialization for constants at the start of each turn
+def initialize_turn(my_player_index: int, game_state: GameState) -> None:
+    if game_state.turn == 1:
+        initialize(game_state, my_player_index)
+
+    Constants.PlayerConstants.SPEED = get_speed(game_state.player_state_list[my_player_index])
+    Constants.PlayerConstants.ATTACK_DISTANCE = get_range(game_state.player_state_list[my_player_index])
+    Constants.PlayerConstants.ATTACK_DAMAGE = get_damage(game_state.player_state_list[my_player_index])
 
 
 class StarterStrategy(Strategy):
@@ -155,14 +166,14 @@ class StarterStrategy(Strategy):
 
     def move_action_decision(self, game_state: GameState, my_player_index: int) -> Position:
         current_location = game_state.player_state_list[my_player_index].position
-        # step 1: map the distances to each hill -> [(dist, hill position)]
-        # step 2: sort based on the distance
-        # step 3: pick the hill position from the first element in the list
-        if game_state.player_state_list[my_player_index].gold >= 8 and same_pos(current_location,
-                                                                                Constants.PlayerConstants.SPAWN) and \
+
+        if game_state.player_state_list[my_player_index].gold >= 8 and \
+                same_pos(current_location, Constants.PlayerConstants.SPAWN) and \
                 game_state.player_state_list[my_player_index].item == Item.NONE:
             return current_location
-        hill_damages = sorted(get_hill_damages(my_player_index, game_state), key=lambda dh: dh[0])
+
+        next_state_guess = predict(my_player_index, game_state)
+        hill_damages = sorted(get_hill_damages(next_state_guess, game_state), key=lambda dh: dh[0])
         min_damage = hill_damages[0][0]
         best_hills = list(map(lambda dh: dh[1], list(filter(lambda dh: dh[0] == min_damage, hill_damages))))
         target = sorted(list(map(lambda hill: (util.utility.manhattan_distance(hill, current_location), hill), best_hills)), key=lambda dh: dh[0])[0][1]
@@ -171,10 +182,6 @@ class StarterStrategy(Strategy):
 
     def attack_action_decision(self, game_state: GameState, my_player_index: int) -> int:
         my_location = game_state.player_state_list[my_player_index].position
-        # step 1: zip indexes over the players in the player_state_list -> [(index, player_state)]
-        # step 2: filter out players that aren't eligible to attack
-        # step 3: take the first player which is eligible to attack and return their index
-        # if there are no eligible players, just return next index
         try:
             eligible = get_attackable(my_player_index, game_state)
             eligible = sorted(
@@ -187,35 +194,12 @@ class StarterStrategy(Strategy):
             return (my_player_index + 1) % 4
 
     def buy_action_decision(self, game_state: GameState, my_player_index: int) -> Item:
-        if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(
+        return Item.HUNTER_SCOPE if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(
                 game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (
-                game_state.player_state_list[my_player_index].item == Item.NONE):
-            return Item.HUNTER_SCOPE
-        return Item.NONE
+                game_state.player_state_list[my_player_index].item == Item.NONE) else Item.NONE
 
     def use_action_decision(self, game_state: GameState, my_player_index: int) -> bool:
-        # this is the first phase to ever run, so we do some initialization stuff if it's the first turn
-        if game_state.turn == 1:
-            initialize(game_state, my_player_index)
-        my_class = game_state.player_state_list[my_player_index].character_class
-        if (my_class == game.character_class.CharacterClass.KNIGHT):
-            Constants.PlayerConstants.SPEED = 2
-            Constants.PlayerConstants.ATTACK_DISTANCE = 1
-            Constants.PlayerConstants.ATTACK_DAMAGE = 6
-        elif (my_class == game.character_class.CharacterClass.WIZARD):
-            Constants.PlayerConstants.SPEED = 3
-            Constants.PlayerConstants.ATTACK_DISTANCE = 2
-            Constants.PlayerConstants.ATTACK_DAMAGE = 4
-        elif (my_class == game.character_class.CharacterClass.ARCHER):
-            Constants.PlayerConstants.SPEED = 4
-            Constants.PlayerConstants.ATTACK_DISTANCE = 3
-            Constants.PlayerConstants.ATTACK_DAMAGE = 2
-
-        if (game_state.player_state_list[my_player_index].item == Item.ANEMOI_WINGS):
-            Constants.PlayerConstants.SPEED += 2
-        elif (game_state.player_state_list[my_player_index].item == Item.HUNTER_SCOPE):
-            Constants.PlayerConstants.ATTACK_DISTANCE += 1
-        elif (game_state.player_state_list[my_player_index].item == Item.RALLY_BANNER):
-            Constants.PlayerConstants.ATTACK_DAMAGE += 2
+        # this is the first phase to run, so initialize constants for the turn
+        initialize_turn(my_player_index, game_state)
 
         return False

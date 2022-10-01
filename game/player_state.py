@@ -6,6 +6,7 @@ from game.stat_set import StatSet
 
 class PlayerState:
   def __init__(self) -> None:
+    # self.isActive = True
     self.character_class = CharacterClass.KNIGHT
     self.item = Item.NONE
     self.position = Position()
@@ -13,7 +14,6 @@ class PlayerState:
     self.score = 0
     self.health = 0
     self.stat_set = StatSet()
-  
   def getScore(self):
     return self.score
 
