@@ -2,6 +2,7 @@ from random import Random
 from game.game_state import GameState
 import game.character_class
 import util.utility
+import game.stat_set
 
 from game.item import Item
 
@@ -18,10 +19,23 @@ class Constants:
         START_CLASS = game.character_class.CharacterClass.KNIGHT
         ATTACK_DISTANCE = 2
         SPAWN = Position(0, 0)
+        SPEED = 2
 
 
 def initialize(game_state: GameState, my_player_index: int) -> None:
     Constants.PlayerConstants.SPAWN = game_state.player_state_list[my_player_index].position
+
+
+def get_possible(current_location: Position) -> [Position]:
+    return list(filter(lambda pos: util.utility.manhattan_distance(current_location, pos) <= Constants.PlayerConstants.SPEED, [Position(x, y) for x in range(10) for y in range(10)]))
+
+
+def get_next_pos(possible_poses: [Position], target: Position) -> Position:
+    return sorted(list(map(lambda pos: (pos, util.utility.chebyshev_distance(pos, target)), possible_poses)), key=lambda pd: pd[1])[0][0]
+
+
+def closest_hill(current_pos: Position) -> Position:
+    return sorted(list(map(lambda hill: (util.utility.manhattan_distance(current_pos, hill), hill), Constants.BoardConstants.HILLS)), key=lambda tup: tup[0])[0][1]
 
 
 class StarterStrategy(Strategy):
@@ -33,7 +47,12 @@ class StarterStrategy(Strategy):
         # step 1: map the distances to each hill -> [(dist, hill position)]
         # step 2: sort based on the distance
         # step 3: pick the hill position from the first element in the list
-        return sorted(list(map(lambda hill: (util.utility.manhattan_distance(current_location, hill), hill), Constants.BoardConstants.HILLS)), key=lambda tup: tup[0])[0][1]
+        if (game_state.player_state_list[my_player_index].gold >= 8 and current_location == Constants.PlayerConstants.SPAWN and game_state.player_state_list[my_player_index].item == game.item.Item.NONE):
+            return current_location
+        possible_poses = get_possible(current_location)
+        next_pos = get_next_pos(possible_poses, closest_hill(current_location))
+        return next_pos
+        # return sorted(list(map(lambda hill: (util.utility.manhattan_distance(current_location, hill), hill), Constants.BoardConstants.HILLS)), key=lambda tup: tup[0])[0][1]
         # return Position(5, 5)
 
     def attack_action_decision(self, game_state: GameState, my_player_index: int) -> int:
@@ -51,10 +70,23 @@ class StarterStrategy(Strategy):
             return (my_player_index + 1) % 4
 
     def buy_action_decision(self, game_state: GameState, my_player_index: int) -> Item:
+
+        if ( (game_state.player_state_list[my_player_index].gold >= 8) and ( game_state.player_state_list[my_player_index].position == Constants.PlayerConstants.SPAWN ) and ( game_state.player_state_list[my_player_index].item == Item.none ) ):
+            return Item.ANEMOI_WINGS
         return Item.NONE
 
     def use_action_decision(self, game_state: GameState, my_player_index: int) -> bool:
         # this is the first phase to ever run, so we do some initialization shit if it's the first turn
         if game_state.turn == 1:
             initialize(game_state, my_player_index)
+        my_class = game_state.player_state_list[my_player_index].character_class
+        if (my_class == game.character_class.CharacterClass.KNIGHT):
+            Constants.PlayerConstants.SPEED = 2
+        elif (my_class == game.character_class.CharacterClass.WIZARD):
+            Constants.PlayerConstants.SPEED = 3
+        elif (my_class == game.character_class.CharacterClass.ARCHER):
+            Constants.PlayerConstants.SPEED = 4
+
+        if ( game_state.player_state_list[my_player_index].item == Item.ANEMOI_WINGS ):
+            Constants.PlayerConstants.SPEED += 1
         return True
