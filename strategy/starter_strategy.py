@@ -18,6 +18,7 @@ class Constants:
         t2 = (4, 5)
         HILLS = [Position(xy[0], xy[1]) for xy in itertools.product(t2, t2)]
         BOARD = [Position(x, y) for x in range(10) for y in range(10)]
+        INACTIVE = [0, 0, 0, 0]
 
     class PlayerConstants:
         START_CLASS = game.character_class.CharacterClass.KNIGHT
@@ -25,6 +26,19 @@ class Constants:
         ATTACK_DAMAGE = -1
         SPAWN = Position(0, 0)
         SPEED = -1
+
+
+
+def check_player_activity(game_state: GameState):
+    for i in range(4):
+        if game_state.player_state_list[i].position in Constants.BoardConstants.STARTS:
+            Constants.BoardConstants.INACTIVE[i] += 1
+        else:
+            Constants.BoardConstants.INACTIVE[i] = 0
+
+def get_active_players(game_state: GameState) -> [int]:
+    return list(filter(lambda p: Constants.BoardConstants.INACTIVE[p]<3, range(4)))
+    # return [x for x, y in enumerate(Constants.BoardConstants.INACTIVE) if y < 3]
 
 
 # returns all players that we can kill this turn
@@ -64,6 +78,8 @@ def get_speed(player: PlayerState) -> int:
         speed = temp.speed
     # add one to range if p     layer has HUNTER SCOPE equipped
     if (player.item == Item.ANEMOI_WINGS):
+        speed += 1
+    if (player.item == Item.SPEED_POTION):
         speed += 2
     return speed
 
@@ -115,8 +131,9 @@ def hills_in_range(player: PlayerState) -> [Position]:
 # finds the closest hill to the position
 def closest_hill(pos: Position) -> Position:
     return \
-    sorted(list(map(lambda hill: (util.utility.manhattan_distance(pos, hill), hill), Constants.BoardConstants.HILLS)),
-           key=lambda tup: tup[0])[0][1]
+        sorted(
+            list(map(lambda hill: (util.utility.manhattan_distance(pos, hill), hill), Constants.BoardConstants.HILLS)),
+            key=lambda tup: tup[0])[0][1]
 
 
 # determines if two positions are the same positions
@@ -176,7 +193,9 @@ class StarterStrategy(Strategy):
         hill_damages = sorted(get_hill_damages(next_state_guess, game_state), key=lambda dh: dh[0])
         min_damage = hill_damages[0][0]
         best_hills = list(map(lambda dh: dh[1], list(filter(lambda dh: dh[0] == min_damage, hill_damages))))
-        target = sorted(list(map(lambda hill: (util.utility.manhattan_distance(hill, current_location), hill), best_hills)), key=lambda dh: dh[0])[0][1]
+        target = \
+        sorted(list(map(lambda hill: (util.utility.manhattan_distance(hill, current_location), hill), best_hills)),
+               key=lambda dh: dh[0])[0][1]
         next_pos = get_next_pos(game_state.player_state_list[my_player_index], target)
         return next_pos
 
@@ -195,11 +214,14 @@ class StarterStrategy(Strategy):
 
     def buy_action_decision(self, game_state: GameState, my_player_index: int) -> Item:
         return Item.HUNTER_SCOPE if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(
-                game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (
-                game_state.player_state_list[my_player_index].item == Item.NONE) else Item.NONE
+            game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (
+                                            game_state.player_state_list[
+                                                my_player_index].item == Item.NONE) else Item.NONE
 
     def use_action_decision(self, game_state: GameState, my_player_index: int) -> bool:
         # this is the first phase to run, so initialize constants for the turn
         initialize_turn(my_player_index, game_state)
+        check_player_activity(game_state)
+        # [print(x) for x in get_active_players(game_state)]
 
         return False
