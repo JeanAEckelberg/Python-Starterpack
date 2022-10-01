@@ -9,4 +9,4 @@ class StatSet(object):
         self.range = range
 
     def plus(self, other):
-        return StatSet(self.maxHealth + other.maxHealth, self.damage + other.damage, self.speed + other.speed, self.range + other.range)
+        return StatSet(self.max_health + other.maxHealth, self.damage + other.damage, self.speed + other.speed, self.range + other.range)
