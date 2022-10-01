@@ -56,5 +56,5 @@ class StarterStrategy(Strategy):
     def use_action_decision(self, game_state: GameState, my_player_index: int) -> bool:
         # this is the first phase to ever run, so we do some initialization shit if it's the first turn
         if game_state.turn == 1:
-        i   itialize(game_state, my_player_index)
+            initialize(game_state, my_player_index)
         return True
