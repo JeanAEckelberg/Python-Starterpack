@@ -13,7 +13,7 @@ class Item(Enum):
     HEAVY_BROADSWORD = ItemModel(StatSet(0, 0, 0, 0), 0, 8)
     MAGIC_STAFF = ItemModel(StatSet(0, 0, 0, 0), 0, 8)
     STEEL_TIPPED_ARROW = ItemModel(StatSet(0, 0, 0, 0), 0, 8)
-    ANEMOI_WINGS = ItemModel(StatSet(0, 0, 2, 0), -1, 8)
+    ANEMOI_WINGS = ItemModel(StatSet(0, 0, 1, 0), -1, 8)
     HUNTER_SCOPE = ItemModel(StatSet(0, 0, 0, 1), -1, 8)
     RALLY_BANNER = ItemModel(StatSet(0, 2, 0, 0), -1, 8)
     STRENGTH_POTION = ItemModel(StatSet(0, 4, 0, 0), 1, 5)

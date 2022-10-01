@@ -14,3 +14,11 @@ class PlayerState:
     self.health = 0
     self.stat_set = StatSet()
   
+  def getScore(self):
+    return self.score
+
+  def getPosition(self):
+    return self.position
+
+  def getStatSet(self):
+    return self.stat_set

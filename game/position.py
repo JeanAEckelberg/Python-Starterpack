@@ -7,3 +7,8 @@ class Position:
         self.x = x
         self.y = y
 
+    def getX(self):
+        return self.x
+
+    def getY(self):
+        return self.y

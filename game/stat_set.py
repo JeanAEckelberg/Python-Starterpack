@@ -8,5 +8,8 @@ class StatSet(object):
         self.speed = speed
         self.range = range
 
+    def getRange(self):
+        return self.range
+
     def plus(self, other):
         return StatSet(self.max_health + other.maxHealth, self.damage + other.damage, self.speed + other.speed, self.range + other.range)
