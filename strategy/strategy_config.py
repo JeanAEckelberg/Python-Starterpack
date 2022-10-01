@@ -1,4 +1,5 @@
 from strategy.starter_strategy import StarterStrategy
+from strategy.archer_strat import ArcherStrategy
 from strategy.strategy import Strategy
 
 """Return the strategy that your bot should use.

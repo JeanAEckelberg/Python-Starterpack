@@ -21,12 +21,12 @@ class Constants:
         INACTIVE = [0, 0, 0, 0]
 
     class PlayerConstants:
-        START_CLASS = game.character_class.CharacterClass.WIZARD
+        START_CLASS = game.character_class.CharacterClass.ARCHER
         ATTACK_DISTANCE = -1
         ATTACK_DAMAGE = -1
         SPAWN = Position(0, 0)
         SPEED = -1
-
+        MY_PLAYER_STATE = game.player_state.PlayerState()
 
 
 def check_player_activity(game_state: GameState):
@@ -54,9 +54,6 @@ def get_killables(game_state: GameState, my_player_index: int, damage: int, chec
         return []
 
 
-
-
-
 # get the maximum range of the given player
 # alex did this one he did he is very proud of it :)
 def get_range(player: PlayerState) -> int:
@@ -79,7 +76,11 @@ def get_speed(player: PlayerState) -> int:
     temp = player.character_class.value
     if isinstance(temp, game.stat_set.StatSet):
         speed = temp.speed
-    # add one to range if p     layer has HUNTER SCOPE equipped
+
+    if ( player == Constants.PlayerConstants.MY_PLAYER_STATE ):
+        speed //= 2
+        speed *= 2
+
     if (player.item == Item.ANEMOI_WINGS):
         speed += 1
     if (player.item == Item.SPEED_POTION):
@@ -175,6 +176,7 @@ def initialize_turn(my_player_index: int, game_state: GameState) -> None:
     if game_state.turn == 1:
         initialize(game_state, my_player_index)
 
+    Constants.PlayerConstants.MY_PLAYER_STATE = game_state.player_state_list[my_player_index]
     Constants.PlayerConstants.SPEED = get_speed(game_state.player_state_list[my_player_index])
     Constants.PlayerConstants.ATTACK_DISTANCE = get_range(game_state.player_state_list[my_player_index])
     Constants.PlayerConstants.ATTACK_DAMAGE = get_damage(game_state.player_state_list[my_player_index])
@@ -201,19 +203,15 @@ class StarterStrategy(Strategy):
         target = \
         sorted(list(map(lambda hill: (util.utility.manhattan_distance(hill, current_location), hill), best_hills)),
                key=lambda dh: dh[0])[0][1]
-        next_pos = get_next_pos(game_state.player_state_list[my_player_index], target)
+        next_pos = get_next_pos(Constants.PlayerConstants.MY_PLAYER_STATE, target)
         if len(get_active_players()) == 2:
-            enemy = get_active_players()[0] if get_active_players()[0]!=my_player_index else get_active_players()[1]
-        #     if get_range(game_state.player_state_list[enemy])<get_range(game_state.player_state_list[my_player_index]):
-        #           enemyPos = predict(my_player_index)
-        #           [(p_index, get_next_pos(game_state.player_state_list[p_index],
-        #                                    closest_hill(game_state.player_state_list[p_index].position)))
-        #             for p_index in range(4) if p_index != my_player_index]
-        #           list(map(lambda pos: (pos, (2 if pos in Constants.BoardConstants.HILLS else 0) + () + ()), get_possible(game_state.player_state_list[my_player_index])))
-        #           2 pts hill, 1 pt we can hit, -2.5 pt take damage
-        #           hill targ > hill > targ > hill targ dam > hill dam > dam
-        #           3           2      1      .5               -.5          -2.5
-        #         TODO willing to leave hill to tag enemy
+            enemy = get_active_players()[int(get_active_players()[0]==my_player_index)]
+            if get_range(game_state.player_state_list[enemy])<get_range(game_state.player_state_list[my_player_index]):
+                enemyPos = get_next_pos(game_state.player_state_list[enemy], closest_hill(game_state.player_state_list[enemy].position))
+                dist = util.utility.chebyschev_distance(enemyPos, next_pos)
+                e = game_state.player_state_list[enemy]
+                p = game_state.player_state_list[my_player_index]
+                next_pos = sorted(list(map(lambda pos: (pos, 2*int(pos in Constants.BoardConstants.HILLS) + int(dist<=get_range(p)) + -2.5*int(dist<=get_range(e))), get_possible(p))), key=lambda pos: pos[1], reverse=True)[0]
         return next_pos
 
     def attack_action_decision(self, game_state: GameState, my_player_index: int) -> int:
@@ -233,10 +231,26 @@ class StarterStrategy(Strategy):
             return (my_player_index + 1) % 4
 
     def buy_action_decision(self, game_state: GameState, my_player_index: int) -> Item:
-        return Item.HUNTER_SCOPE if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(
-            game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (
-                                            game_state.player_state_list[
-                                                my_player_index].item == Item.NONE) else Item.NONE
+        # if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(
+        #     game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (
+        #         game_state.player_state_list[my_player_index].item == Item.NONE):
+        #     scope_points = sum(list(map(lambda p: p.score, list(filter(
+        #         lambda p: p.character_class == game.character_class.CharacterClass.KNIGHT
+        #                   or p.character_class == game.character_class.CharacterClass.ARCHER,
+        #         list(filter(lambda p: p != game_state.player_state_list[my_player_index], game_state.player_state_list)))))))
+        #     banner_points = sum(list(map(lambda p: p.score, list(filter(
+        #         lambda p: p.character_class == game.character_class.CharacterClass.WIZARD,
+        #         list(filter(lambda p: p != game_state.player_state_list[my_player_index], (game_state.player_state_list))))))))
+        #     return Item.HUNTER_SCOPE if scope_points >= banner_points else Item.RALLY_BANNER
+        # return Item.NONE
+
+        # return Item.HUNTER_SCOPE if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(
+        #     game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (
+        #                                     game_state.player_state_list[
+        #                                         my_player_index].item == Item.NONE) else Item.NONE
+
+        return Item.NONE
+
 
     def use_action_decision(self, game_state: GameState, my_player_index: int) -> bool:
         # this is the first phase to run, so initialize constants for the turn
