@@ -21,7 +21,7 @@ class Constants:
         INACTIVE = [0, 0, 0, 0]
 
     class PlayerConstants:
-        START_CLASS = game.character_class.CharacterClass.KNIGHT
+        START_CLASS = game.character_class.CharacterClass.WIZARD
         ATTACK_DISTANCE = -1
         ATTACK_DAMAGE = -1
         SPAWN = Position(0, 0)
@@ -36,22 +36,25 @@ def check_player_activity(game_state: GameState):
         else:
             Constants.BoardConstants.INACTIVE[i] = 0
 
-def get_active_players(game_state: GameState) -> [int]:
+def get_active_players() -> [int]:
     return list(filter(lambda p: Constants.BoardConstants.INACTIVE[p]<3, range(4)))
     # return [x for x, y in enumerate(Constants.BoardConstants.INACTIVE) if y < 3]
 
 
 # returns all players that we can kill this turn
-def get_killables(game_state: GameState, my_player_index: int, damage: int) -> [(int, game.player_state.PlayerState)]:
+def get_killables(game_state: GameState, my_player_index: int, damage: int, check_shield: bool) -> [(int, game.player_state.PlayerState)]:
     my_location = game_state.player_state_list[my_player_index].position
     try:
         eligible = get_attackable(my_player_index, game_state)
         eligible = sorted(
-            filter(lambda p: p[1].health <= damage, map(lambda ip: (ip[0], ip[1], ip[1].health), eligible)),
+            filter(lambda p: ((not check_shield) or (check_shield and p[1].item!=Item.SHIELD)) and p[1].health <= (4 if p[1].item == Item.PROCRUSTEAN_IRON else damage), map(lambda ip: (ip[0], ip[1], ip[1].health), eligible)),
             key=lambda tup: tup[2], reverse=True)
         return eligible
-    except:
-        return (my_player_index + 1) % 4
+    except Exception as e:
+        return []
+
+
+
 
 
 # get the maximum range of the given player
@@ -189,6 +192,8 @@ class StarterStrategy(Strategy):
                 game_state.player_state_list[my_player_index].item == Item.NONE:
             return current_location
 
+
+
         next_state_guess = predict(my_player_index, game_state)
         hill_damages = sorted(get_hill_damages(next_state_guess, game_state), key=lambda dh: dh[0])
         min_damage = hill_damages[0][0]
@@ -197,19 +202,34 @@ class StarterStrategy(Strategy):
         sorted(list(map(lambda hill: (util.utility.manhattan_distance(hill, current_location), hill), best_hills)),
                key=lambda dh: dh[0])[0][1]
         next_pos = get_next_pos(game_state.player_state_list[my_player_index], target)
+        if len(get_active_players()) == 2:
+            enemy = get_active_players()[0] if get_active_players()[0]!=my_player_index else get_active_players()[1]
+        #     if get_range(game_state.player_state_list[enemy])<get_range(game_state.player_state_list[my_player_index]):
+        #           enemyPos = predict(my_player_index)
+        #           [(p_index, get_next_pos(game_state.player_state_list[p_index],
+        #                                    closest_hill(game_state.player_state_list[p_index].position)))
+        #             for p_index in range(4) if p_index != my_player_index]
+        #           list(map(lambda pos: (pos, (2 if pos in Constants.BoardConstants.HILLS else 0) + () + ()), get_possible(game_state.player_state_list[my_player_index])))
+        #           2 pts hill, 1 pt we can hit, -2.5 pt take damage
+        #           hill targ > hill > targ > hill targ dam > hill dam > dam
+        #           3           2      1      .5               -.5          -2.5
+        #         TODO willing to leave hill to tag enemy
         return next_pos
 
     def attack_action_decision(self, game_state: GameState, my_player_index: int) -> int:
         my_location = game_state.player_state_list[my_player_index].position
         try:
-            eligible = get_attackable(my_player_index, game_state)
+            eligible = get_killables(game_state, my_player_index, get_damage(game_state.player_state_list[my_player_index]), True)
+            eligible = get_attackable(my_player_index, game_state) if len(eligible)==0 else eligible
             eligible = sorted(
-                map(lambda ip: (ip[0], ip[1], util.utility.chebyshev_distance(my_location, ip[1].position)), eligible),
-                key=lambda tup: tup[2])
+                map(lambda ip: (ip[0], ip[1], ip[1].score), eligible), key = lambda tup: tup[2], reverse=True)
+                # map(lambda ip: (ip[0], ip[1], util.utility.chebyshev_distance(my_location, ip[1].position)), eligible),
+                # key=lambda tup: tup[2])
+
             # eligible = sorted(map(lambda ip: (ip[0], ip[1], ip[1].health), eligible), key=lambda tup: tup[2])
 
             return eligible[0][0]
-        except:
+        except Exception as e:
             return (my_player_index + 1) % 4
 
     def buy_action_decision(self, game_state: GameState, my_player_index: int) -> Item:
