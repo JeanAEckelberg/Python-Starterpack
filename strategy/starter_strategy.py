@@ -21,12 +21,11 @@ class Constants:
         INACTIVE = [0, 0, 0, 0]
 
     class PlayerConstants:
-        START_CLASS = game.character_class.CharacterClass.WIZARD
+        START_CLASS = game.character_class.CharacterClass.KNIGHT
         ATTACK_DISTANCE = -1
         ATTACK_DAMAGE = -1
         SPAWN = Position(0, 0)
         SPEED = -1
-        MY_PLAYER_STATE = game.player_state.PlayerState()
 
 
 def check_player_activity(game_state: GameState):
@@ -47,11 +46,26 @@ def get_killables(game_state: GameState, my_player_index: int, damage: int, chec
     try:
         eligible = get_attackable(my_player_index, game_state)
         eligible = sorted(
-            filter(lambda p: ((not check_shield) or (check_shield and p[1].item!=Item.SHIELD)) and p[1].health <= (4 if p[1].item == Item.PROCRUSTEAN_IRON else damage), map(lambda ip: (ip[0], ip[1], ip[1].health), eligible)),
+            filter(lambda p: ((not check_shield) or (check_shield and p[1].item!=Item.SHIELD)) and p[1].health <= (5 if p[1].item == Item.PROCRUSTEAN_IRON else damage), map(lambda ip: (ip[0], ip[1], ip[1].health), eligible)),
             key=lambda tup: tup[2], reverse=True)
         return eligible
     except Exception as e:
         return []
+
+
+def has_kill(enemy_positions: [(int, Position)], game_state: GameState, pos: Position, player_index: int) -> bool:
+    check_shield = True
+    for e in enemy_positions:
+        if util.utility.chebyshev_distance(e[1], pos) <= get_range(game_state.player_state_list[player_index]):
+            if ((not check_shield) or (check_shield and e[1].item!=Item.SHIELD)) and game_state.player_state_list[e[0]].health <= (5 if game_state.player_state_list[e[0]].item==Item.PROCRUSTEAN_IRON else get_damage(game_state.player_state_list[player_index])):
+                return True
+    return False
+
+def has_hit(enemy_positions: [(int, Position)], game_state: GameState, pos: Position, player_index: int) -> bool:
+    return len([e for e in enemy_positions if util.utility.chebyshev_distance(e[1], pos) <= get_range(game_state.player_state_list[player_index])]) > 0
+
+def hills_with_kills(game_state: GameState, my_player_index: int) -> [Position]:
+    return list(filter(lambda h: has_kill(predict(my_player_index, game_state), game_state, h, my_player_index), Constants.BoardConstants.HILLS))
 
 
 # get the maximum range of the given player
@@ -77,9 +91,9 @@ def get_speed(player: PlayerState) -> int:
     if isinstance(temp, game.stat_set.StatSet):
         speed = temp.speed
 
-    if ( player == Constants.PlayerConstants.MY_PLAYER_STATE ):
-        speed //= 2
-        speed *= 2
+    # if ( player == Constants.PlayerConstants.MY_PLAYER_STATE ):
+    #     speed //= 2
+    #     speed *= 2
 
     if (player.item == Item.ANEMOI_WINGS):
         speed += 1
@@ -176,7 +190,6 @@ def initialize_turn(my_player_index: int, game_state: GameState) -> None:
     if game_state.turn == 1:
         initialize(game_state, my_player_index)
 
-    Constants.PlayerConstants.MY_PLAYER_STATE = game_state.player_state_list[my_player_index]
     Constants.PlayerConstants.SPEED = get_speed(game_state.player_state_list[my_player_index])
     Constants.PlayerConstants.ATTACK_DISTANCE = get_range(game_state.player_state_list[my_player_index])
     Constants.PlayerConstants.ATTACK_DAMAGE = get_damage(game_state.player_state_list[my_player_index])
@@ -191,27 +204,30 @@ class StarterStrategy(Strategy):
 
         if game_state.player_state_list[my_player_index].gold >= 8 and \
                 same_pos(current_location, Constants.PlayerConstants.SPAWN) and \
-                game_state.player_state_list[my_player_index].item == Item.NONE:
+                game_state.player_state_list[my_player_index].item == Item.NONE and \
+                game_state.player_state_list[my_player_index].character_class != game.character_class.CharacterClass.ARCHER:
             return current_location
-
-
 
         next_state_guess = predict(my_player_index, game_state)
         hill_damages = sorted(get_hill_damages(next_state_guess, game_state), key=lambda dh: dh[0])
         min_damage = hill_damages[0][0]
         best_hills = list(map(lambda dh: dh[1], list(filter(lambda dh: dh[0] == min_damage, hill_damages))))
         target = \
-        sorted(list(map(lambda hill: (util.utility.manhattan_distance(hill, current_location), hill), best_hills)),
-               key=lambda dh: dh[0])[0][1]
-        next_pos = get_next_pos(Constants.PlayerConstants.MY_PLAYER_STATE, target)
-        if len(get_active_players()) == 2:
-            enemy = get_active_players()[int(get_active_players()[0]==my_player_index)]
-            if get_range(game_state.player_state_list[enemy])<get_range(game_state.player_state_list[my_player_index]):
-                enemyPos = get_next_pos(game_state.player_state_list[enemy], closest_hill(game_state.player_state_list[enemy].position))
-                dist = util.utility.chebyschev_distance(enemyPos, next_pos)
-                e = game_state.player_state_list[enemy]
-                p = game_state.player_state_list[my_player_index]
-                next_pos = sorted(list(map(lambda pos: (pos, 2*int(pos in Constants.BoardConstants.HILLS) + int(dist<=get_range(p)) + -2.5*int(dist<=get_range(e))), get_possible(p))), key=lambda pos: pos[1], reverse=True)[0]
+            sorted(list(map(lambda hill: (util.utility.manhattan_distance(hill, current_location), hill), best_hills)),
+                   key=lambda dh: dh[0])[0][1]
+        try:
+            target = list(filter(lambda dh: dh[1] in hills_with_kills(game_state, my_player_index), best_hills))[0][1]
+        except:
+            pass
+        next_pos = get_next_pos(game_state.player_state_list[my_player_index], target)
+        # if len(get_active_players()) == 2:
+        #     enemy = get_active_players()[int(get_active_players()[0]==my_player_index)]
+        #     if get_range(game_state.player_state_list[enemy])<get_range(game_state.player_state_list[my_player_index]):
+        #         enemyPos = get_next_pos(game_state.player_state_list[enemy], closest_hill(game_state.player_state_list[enemy].position))
+        #         dist = util.utility.chebyschev_distance(enemyPos, next_pos)
+        #         e = game_state.player_state_list[enemy]
+        #         p = game_state.player_state_list[my_player_index]
+        #         next_pos = sorted(list(map(lambda pos: (pos, 2*int(pos in Constants.BoardConstants.HILLS) + int(dist<=get_range(p)) + -2.5*int(dist<=get_range(e))), get_possible(p))), key=lambda pos: pos[1], reverse=True)[0]
         return next_pos
 
     def attack_action_decision(self, game_state: GameState, my_player_index: int) -> int:
@@ -231,25 +247,27 @@ class StarterStrategy(Strategy):
             return (my_player_index + 1) % 4
 
     def buy_action_decision(self, game_state: GameState, my_player_index: int) -> Item:
-        if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(
-            game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (
-                game_state.player_state_list[my_player_index].item == Item.NONE):
-            scope_points = sum(list(map(lambda p: p.score, list(filter(
-                lambda p: p.character_class == game.character_class.CharacterClass.KNIGHT
-                          or p.character_class == game.character_class.CharacterClass.ARCHER,
-                list(filter(lambda p: p != game_state.player_state_list[my_player_index], game_state.player_state_list)))))))
-            banner_points = sum(list(map(lambda p: p.score, list(filter(
-                lambda p: p.character_class == game.character_class.CharacterClass.WIZARD,
-                list(filter(lambda p: p != game_state.player_state_list[my_player_index], (game_state.player_state_list))))))))
-            return Item.HUNTER_SCOPE if scope_points >= banner_points else Item.RALLY_BANNER
-        return Item.NONE
-        #
-        # return Item.HUNTER_SCOPE if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(
-        #     game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (
-        #                                     game_state.player_state_list[
-        #                                         my_player_index].item == Item.NONE) else Item.NONE
+        if (game_state.player_state_list[my_player_index].character_class == game.character_class.CharacterClass.WIZARD):
+            if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(
+                game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (
+                    game_state.player_state_list[my_player_index].item == Item.NONE):
+                scope_points = sum(list(map(lambda p: p.score, list(filter(
+                    lambda p: p.character_class == game.character_class.CharacterClass.KNIGHT
+                              or p.character_class == game.character_class.CharacterClass.ARCHER,
+                    list(filter(lambda p: p != game_state.player_state_list[my_player_index], game_state.player_state_list)))))))
+                banner_points = sum(list(map(lambda p: p.score, list(filter(
+                    lambda p: p.character_class == game.character_class.CharacterClass.WIZARD,
+                    list(filter(lambda p: p != game_state.player_state_list[my_player_index], (game_state.player_state_list))))))))
+                return Item.HUNTER_SCOPE if scope_points >= banner_points else Item.RALLY_BANNER
+            return Item.NONE
 
-        # return Item.NONE
+        elif (game_state.player_state_list[my_player_index].character_class == game.character_class.CharacterClass.KNIGHT):
+            return Item.HUNTER_SCOPE if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(
+                game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (
+                                                game_state.player_state_list[
+                                                    my_player_index].item == Item.NONE) else Item.NONE
+
+        return Item.NONE
 
 
     def use_action_decision(self, game_state: GameState, my_player_index: int) -> bool:
