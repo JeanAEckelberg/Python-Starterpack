@@ -1,3 +1,3 @@
 py build.py
-start /b start-4-python-bots2.bat
+start /b start-4-python-bots.bat
 java -jar .\Engine.jar

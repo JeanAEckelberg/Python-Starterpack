@@ -33,7 +33,7 @@ class StarterStrategy(Strategy):
         # step 1: map the distances to each hill -> [(dist, hill position)]
         # step 2: sort based on the distance
         # step 3: pick the hill position from the first element in the list
-        return sorted(list(map(lambda hill: (util.utility.chebyshev_distance(current_location, hill), hill), Constants.BoardConstants.HILLS)), key=lambda tup: tup[0])[0][1]
+        return sorted(list(map(lambda hill: (util.utility.manhattan_distance(current_location, hill), hill), Constants.BoardConstants.HILLS)), key=lambda tup: tup[0])[0][1]
         # return Position(5, 5)
 
     def attack_action_decision(self, game_state: GameState, my_player_index: int) -> int:
@@ -44,7 +44,7 @@ class StarterStrategy(Strategy):
         # step 3: take the first player which is eligible to attack and return their index
         # if there are no eligible players, just return 0
         try:
-            eligible = list(filter(lambda ip: ip[0] != my_player_index and util.utility.chebyshev_distance(ip[1].position, my_location) < PlayerConstants.ATTACK_DISTANCE, list(zip([0, 1, 2, 3], game_state.player_state_list))))
+            eligible = list(filter(lambda ip: ip[0] != my_player_index and util.utility.chebyshev_distance(ip[1].position, my_location) < Constants.PlayerConstants.ATTACK_DISTANCE, list(zip([0, 1, 2, 3], game_state.player_state_list))))
             eligible = sorted(map(lambda ip: (ip[0], ip[1], util.utility.chebyshev_distance(my_location, ip[1].position)), eligible), key=lambda tup: tup[2])
             return eligible[0][0]
         except:
