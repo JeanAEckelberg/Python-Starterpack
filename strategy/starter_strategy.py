@@ -21,11 +21,12 @@ class Constants:
         INACTIVE = [0, 0, 0, 0]
 
     class PlayerConstants:
-        START_CLASS = game.character_class.CharacterClass.KNIGHT
+        START_CLASS = game.character_class.CharacterClass.ARCHER
         ATTACK_DISTANCE = -1
         ATTACK_DAMAGE = -1
         SPAWN = Position(0, 0)
         SPEED = -1
+        WANT_TO_SWITCH_TO_KNIGHT = False
 
 
 def check_player_activity(game_state: GameState):
@@ -126,6 +127,7 @@ def get_ranges(game_state: GameState) -> [(int, int)]:
 # set up constants at the start of the game
 def initialize(game_state: GameState, my_player_index: int) -> None:
     Constants.PlayerConstants.SPAWN = game_state.player_state_list[my_player_index].position
+    Constants.PlayerConstants.WANT_TO_SWITCH_TO_KNIGHT = all([p.character_class == game.character_class.CharacterClass.ARCHER for p in game_state.player_state_list if p != game_state.player_state_list[my_player_index]])
 
 
 # gets all possible locations for a player to move to
@@ -208,6 +210,9 @@ class StarterStrategy(Strategy):
                 game_state.player_state_list[my_player_index].character_class != game.character_class.CharacterClass.ARCHER:
             return current_location
 
+        if game_state.player_state_list[my_player_index].gold >= 10 and same_pos(current_location, Constants.PlayerConstants.SPAWN) and Constants.PlayerConstants.WANT_TO_SWITCH_TO_KNIGHT:
+            return current_location
+
         next_state_guess = predict(my_player_index, game_state)
         hill_damages = sorted(get_hill_damages(next_state_guess, game_state), key=lambda dh: dh[0])
         min_damage = hill_damages[0][0]
@@ -247,6 +252,10 @@ class StarterStrategy(Strategy):
             return (my_player_index + 1) % 4
 
     def buy_action_decision(self, game_state: GameState, my_player_index: int) -> Item:
+        if Constants.PlayerConstants.WANT_TO_SWITCH_TO_KNIGHT and game_state.player_state_list[my_player_index].gold >= 10 and same_pos(game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN):
+            Constants.PlayerConstants.WANT_TO_SWITCH_TO_KNIGHT = False
+            return Item.HEAVY_BROADSWORD
+
         if (game_state.player_state_list[my_player_index].character_class == game.character_class.CharacterClass.WIZARD):
             if (game_state.player_state_list[my_player_index].gold >= 8) and same_pos(
                 game_state.player_state_list[my_player_index].position, Constants.PlayerConstants.SPAWN) and (
@@ -276,4 +285,7 @@ class StarterStrategy(Strategy):
         check_player_activity(game_state)
         # [print(x) for x in get_active_players(game_state)]
 
+        if game_state.player_state_list[my_player_index].item == Item.HEAVY_BROADSWORD:
+            Constants.PlayerConstants.START_CLASS = game.character_class.CharacterClass.KNIGHT
+            return True
         return False
